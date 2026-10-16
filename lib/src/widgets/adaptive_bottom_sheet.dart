@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../platform/platform_info.dart';
+import '../toolbar/toolbar_chrome_scope.dart';
 import 'adaptive_blur_view.dart';
 import 'detent_sheet.dart';
 import 'ios26/ios26_bottom_sheet.dart';
@@ -10,10 +11,13 @@ export 'detent_sheet.dart' show AdaptiveSheetDetent;
 
 /// An adaptive modal bottom sheet that renders platform-specific styles
 ///
+/// On iOS, a sheet that only opens at full height is the system page sheet,
+/// `showCupertinoSheet`: the page behind it recedes, and dragging down on the
+/// contents' scroll view at its top drags the sheet (see `scrollableBuilder`).
+/// Below full height:
 /// On iOS 26+: A floating Liquid Glass sheet on a native `UIVisualEffectView`
 /// background that meets the screen edges at its full height
-/// On iOS <26 (iOS 18 and below): `showCupertinoSheet` when the sheet only
-/// opens at full height, else the opaque edge-to-edge iOS sheet at its detents
+/// On iOS <26 (iOS 18 and below): the opaque edge-to-edge iOS sheet
 /// On Android: Material 3 `showModalBottomSheet`
 ///
 /// On every platform the sheet rests at [AdaptiveSheetDetent]s and snaps
@@ -23,7 +27,13 @@ export 'detent_sheet.dart' show AdaptiveSheetDetent;
 class AdaptiveBottomSheet {
   AdaptiveBottomSheet._();
 
-  /// Shows an adaptive bottom sheet whose contents [builder] builds.
+  /// Shows an adaptive bottom sheet whose contents [builder] or
+  /// [scrollableBuilder] builds. Pass exactly one.
+  ///
+  /// Give [scrollableBuilder]'s controller to the contents' scroll view: in
+  /// the full-height iOS sheet, dragging down on it at its top then drags the
+  /// sheet, as in a system sheet. Elsewhere the controller is the scroll
+  /// view's own.
   ///
   /// The sheet opens at [initialDetent] (the smallest of [detents] when null)
   /// and rests at [detents]. The contents get the sheet's height below the
@@ -38,7 +48,8 @@ class AdaptiveBottomSheet {
   /// or null when it was dismissed.
   static Future<T?> show<T>({
     required BuildContext context,
-    required WidgetBuilder builder,
+    WidgetBuilder? builder,
+    ScrollableWidgetBuilder? scrollableBuilder,
     List<AdaptiveSheetDetent> detents = const [AdaptiveSheetDetent.large],
     AdaptiveSheetDetent? initialDetent,
     bool isDismissible = true,
@@ -47,6 +58,10 @@ class AdaptiveBottomSheet {
     Color? backgroundColor,
     BlurStyle blurStyle = BlurStyle.systemMaterial,
   }) {
+    assert(
+      (builder == null) != (scrollableBuilder == null),
+      'Pass either builder or scrollableBuilder',
+    );
     assert(detents.isNotEmpty, 'A sheet needs at least one detent');
     assert(
       initialDetent == null || detents.contains(initialDetent),
@@ -57,12 +72,33 @@ class AdaptiveBottomSheet {
       context,
       CupertinoLocalizations,
     )?.modalBarrierDismissLabel;
+    final WidgetBuilder contentBuilder =
+        builder ??
+        (context) => _OwnScrollController(builder: scrollableBuilder!);
+
+    // iOS - the system page sheet, with the page behind it scaled back
+    final fullHeightOnly = DetentSheet.sizesOf(detents).first >= 1.0;
+    if (PlatformInfo.isIOS && fullHeightOnly) {
+      return showCupertinoSheet<T>(
+        context: context,
+        enableDrag: isDismissible,
+        scrollableBuilder: (context, controller) => _ToolbarCover(
+          child: _CupertinoSheetContents(
+            showDragHandle: showDragHandle,
+            backgroundColor: backgroundColor,
+            child: scrollableBuilder != null
+                ? scrollableBuilder(context, controller)
+                : builder!(context),
+          ),
+        ),
+      );
+    }
 
     // iOS 26+ - Floating Liquid Glass sheet
     if (PlatformInfo.isIOS26OrHigher()) {
       return Navigator.of(context, rootNavigator: useRootNavigator).push<T>(
         IOS26BottomSheetRoute<T>(
-          builder: builder,
+          builder: contentBuilder,
           detents: detents,
           initialDetent: initialDetent,
           isDismissible: isDismissible,
@@ -74,26 +110,12 @@ class AdaptiveBottomSheet {
       );
     }
 
-    // iOS 18 and below
+    // iOS 18 and below: showCupertinoSheet has no detents; draw the classic
+    // sheet at them
     if (PlatformInfo.isIOS) {
-      final fullHeightOnly = DetentSheet.sizesOf(detents).first >= 1.0;
-      if (fullHeightOnly) {
-        // The system page sheet, with the page behind it scaled back
-        return showCupertinoSheet<T>(
-          context: context,
-          enableDrag: isDismissible,
-          builder: (context) => _CupertinoSheetContents(
-            showDragHandle: showDragHandle,
-            backgroundColor: backgroundColor,
-            child: Builder(builder: builder),
-          ),
-        );
-      }
-
-      // showCupertinoSheet has no detents; draw the classic sheet at them
       return Navigator.of(context, rootNavigator: useRootNavigator).push<T>(
         IOS26BottomSheetRoute<T>(
-          builder: builder,
+          builder: contentBuilder,
           detents: detents,
           initialDetent: initialDetent,
           isDismissible: isDismissible,
@@ -127,7 +149,7 @@ class AdaptiveBottomSheet {
           isDismissible: isDismissible,
           dragHandle: showDragHandle ? const _MaterialDragHandle() : null,
           chromeBuilder: (context, extent, child) => child,
-          builder: builder,
+          builder: contentBuilder,
         ),
       ),
     );
@@ -199,4 +221,66 @@ class _MaterialDragHandle extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Owns the controller a [ScrollableWidgetBuilder] gets where the sheet does
+/// not hand one out.
+class _OwnScrollController extends StatefulWidget {
+  const _OwnScrollController({required this.builder});
+
+  final ScrollableWidgetBuilder builder;
+
+  @override
+  State<_OwnScrollController> createState() => _OwnScrollControllerState();
+}
+
+class _OwnScrollControllerState extends State<_OwnScrollController> {
+  final _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _controller);
+}
+
+/// Fades the fixed toolbar out as the page sheet rises over it: the toolbar
+/// is drawn above every route, and the page sheet reaches past it.
+class _ToolbarCover extends StatefulWidget {
+  const _ToolbarCover({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ToolbarCover> createState() => _ToolbarCoverState();
+}
+
+class _ToolbarCoverState extends State<_ToolbarCover> {
+  ValueSetter<double>? _report;
+  Animation<double>? _animation;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _report ??= ToolbarChromeScope.sheetCoverReporterOf(context);
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == _animation) return;
+    _animation?.removeListener(_reportCover);
+    _animation = animation?..addListener(_reportCover);
+  }
+
+  void _reportCover() => _report?.call(_animation!.value.clamp(0.0, 1.0));
+
+  @override
+  void dispose() {
+    _animation?.removeListener(_reportCover);
+    _report?.call(0);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

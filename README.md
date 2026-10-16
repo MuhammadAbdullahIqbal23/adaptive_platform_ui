@@ -408,11 +408,22 @@ await AdaptiveBottomSheet.show<void>(
 
 The contents are your own widgets, so they share the app's theme, providers and navigator. The sheet rests at its `detents`, snaps between them, and dismisses when dragged down past the smallest one (unless `isDismissible` is `false`).
 
-**iOS 26+**: A floating Liquid Glass sheet on a native `UIVisualEffectView` background; it meets the screen edges at full height.
-**iOS <26**: `showCupertinoSheet` for full-height sheets, the opaque edge-to-edge iOS sheet for smaller detents.
+**iOS, full height only** (`detents: [AdaptiveSheetDetent.large]`): the system page sheet, `showCupertinoSheet`; the page behind it recedes.
+**iOS 26+, other detents**: A floating Liquid Glass sheet on a native `UIVisualEffectView` background; it meets the screen edges at full height.
+**iOS <26, other detents**: the opaque edge-to-edge iOS sheet.
 **Android**: Material 3 `showModalBottomSheet` with a drag handle.
 
-Dragging the handle or any non-scrolling part of the contents moves the sheet; a scroll view inside the contents scrolls on its own.
+Dragging the handle or any non-scrolling part of the contents moves the sheet; a scroll view inside the contents scrolls on its own. For a long document, pass `scrollableBuilder` instead of `builder` and give its controller to your scroll view: in the full-height iOS sheet, dragging down on it at its top then drags the sheet, as in a system sheet.
+
+```dart
+await AdaptiveBottomSheet.show<void>(
+  context: context,
+  scrollableBuilder: (context, controller) => ListView(
+    controller: controller,
+    children: const [Text('Terms of Service')],
+  ),
+);
+```
 
 ### AdaptiveContextMenu
 

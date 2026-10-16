@@ -88,6 +88,51 @@ void main() {
       expect(result, 'picked');
     });
 
+    testWidgets('gives scrollableBuilder a controller for its scroll view', (
+      tester,
+    ) async {
+      ScrollController? given;
+      await tester.pumpWidget(
+        _app(
+          (context) => AdaptiveBottomSheet.show<void>(
+            context: context,
+            scrollableBuilder: (context, controller) {
+              given = controller;
+              return ListView(
+                key: _contentKey,
+                controller: controller,
+                children: const [Text('Row')],
+              );
+            },
+          ),
+        ),
+      );
+      await _open(tester);
+
+      expect(find.byKey(_contentKey), findsOneWidget);
+      expect(given?.hasClients, isTrue);
+    });
+
+    testWidgets('asks for exactly one of builder and scrollableBuilder', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app((context) async => null));
+      final context = tester.element(find.text('Open'));
+
+      expect(
+        () => AdaptiveBottomSheet.show<void>(context: context),
+        throwsAssertionError,
+      );
+      expect(
+        () => AdaptiveBottomSheet.show<void>(
+          context: context,
+          builder: _content,
+          scrollableBuilder: (context, controller) => _content(context),
+        ),
+        throwsAssertionError,
+      );
+    });
+
     testWidgets('opens at the smallest detent', (tester) async {
       await tester.pumpWidget(
         _app(
