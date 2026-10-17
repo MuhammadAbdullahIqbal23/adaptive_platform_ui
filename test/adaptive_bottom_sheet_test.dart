@@ -372,6 +372,35 @@ void main() {
 
       expect(find.byKey(_contentKey), findsOneWidget);
     });
+
+    testWidgets('sits above the keyboard and hides its inset from the '
+        'contents', (tester) async {
+      tester.view
+        ..devicePixelRatio = 1
+        ..physicalSize = const Size(400, 800)
+        ..padding = const FakeViewPadding(top: 50, bottom: 34)
+        ..viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(tester.view.reset);
+      MediaQueryData? seen;
+      await tester.pumpWidget(
+        _app(
+          (context) => Navigator.of(context).push(
+            IOSBottomSheetRoute<String>(
+              detents: const [AdaptiveSheetDetent.medium],
+              builder: (context) {
+                seen = MediaQuery.of(context);
+                return _content(context);
+              },
+            ),
+          ),
+        ),
+      );
+      await _open(tester);
+
+      expect(seen!.viewInsets.bottom, 0);
+      expect(seen!.padding.top, 0);
+      expect(tester.getRect(find.byKey(_contentKey)).bottom, 800 - 300 - 8);
+    });
   });
 
   // The fixed toolbar is drawn above every route, so a sheet must tell the

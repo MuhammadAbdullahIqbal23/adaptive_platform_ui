@@ -152,24 +152,24 @@ class IOSBottomSheetRoute<T> extends PopupRoute<T> {
         top: mediaQuery.padding.top + _kTopGap,
         bottom: mediaQuery.viewInsets.bottom,
       ),
-      child: MediaQuery.removeViewInsets(
-        context: context,
-        removeBottom: true,
-        child: MediaQuery.removePadding(
-          context: context,
-          removeTop: true,
-          child: Semantics(
-            scopesRoute: true,
-            namesRoute: true,
-            explicitChildNodes: true,
-            child: DetentSheet(
-              detents: detents,
-              initialDetent: initialDetent,
-              isDismissible: isDismissible,
-              dragHandle: showDragHandle ? const SheetGrabber() : null,
-              chromeBuilder: _buildChrome,
-              builder: builder,
-            ),
+      // One MediaQuery for both: nesting MediaQuery.removePadding inside
+      // MediaQuery.removeViewInsets with this context would read the route's
+      // MediaQuery again and hand the keyboard's inset back to the contents.
+      child: MediaQuery(
+        data: mediaQuery
+            .removeViewInsets(removeBottom: true)
+            .removePadding(removeTop: true),
+        child: Semantics(
+          scopesRoute: true,
+          namesRoute: true,
+          explicitChildNodes: true,
+          child: DetentSheet(
+            detents: detents,
+            initialDetent: initialDetent,
+            isDismissible: isDismissible,
+            dragHandle: showDragHandle ? const SheetGrabber() : null,
+            chromeBuilder: _buildChrome,
+            builder: builder,
           ),
         ),
       ),
