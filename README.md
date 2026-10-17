@@ -413,7 +413,7 @@ The contents are your own widgets, so they share the app's theme, providers and 
 **iOS <26, other detents**: the opaque edge-to-edge iOS sheet.
 **Android**: Material 3 `showModalBottomSheet` with a drag handle.
 
-Dragging the handle or any non-scrolling part of the contents moves the sheet; a scroll view inside the contents scrolls on its own. For a long document, pass `scrollableBuilder` instead of `builder` and give its controller to your scroll view: in the full-height iOS sheet, dragging down on it at its top then drags the sheet, as in a system sheet.
+Dragging the handle or any non-scrolling part of the contents moves the sheet; a scroll view inside the contents scrolls on its own. For a long document, pass `scrollableBuilder` instead of `builder`: it hands your scroll view a controller the sheet creates and disposes.
 
 ```dart
 await AdaptiveBottomSheet.show<void>(

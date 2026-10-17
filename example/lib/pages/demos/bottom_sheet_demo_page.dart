@@ -56,8 +56,7 @@ class _BottomSheetDemoPageState extends State<BottomSheetDemoPage> {
           _buildSection(
             isDark,
             title: 'Full Height',
-            description:
-                'A single large detent: the page sheet on iOS 18 and below',
+            description: 'A single large detent: the system page sheet on iOS',
             child: AdaptiveButton(
               label: 'Show Full Height Sheet',
               style: AdaptiveButtonStyle.tinted,

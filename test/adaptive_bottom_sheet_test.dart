@@ -267,7 +267,7 @@ void main() {
     });
   });
 
-  group('IOS26BottomSheetRoute', () {
+  group('IOSBottomSheetRoute', () {
     Future<Object?> push(
       BuildContext context, {
       List<AdaptiveSheetDetent> detents = const [AdaptiveSheetDetent.medium],
@@ -276,7 +276,7 @@ void main() {
       bool liquidGlass = true,
     }) {
       return Navigator.of(context).push(
-        IOS26BottomSheetRoute<String>(
+        IOSBottomSheetRoute<String>(
           builder: _content,
           detents: detents,
           initialDetent: initialDetent,
@@ -406,7 +406,7 @@ void main() {
       AdaptiveSheetDetent initialDetent,
     ) {
       return Navigator.of(context).push(
-        IOS26BottomSheetRoute<String>(
+        IOSBottomSheetRoute<String>(
           builder: _content,
           detents: const [
             AdaptiveSheetDetent.medium,

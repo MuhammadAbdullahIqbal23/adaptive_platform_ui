@@ -3,10 +3,10 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show Material, MaterialType;
 
-import '../../toolbar/hosted_top_toolbar.dart' show kHostedToolbarHeight;
-import '../../toolbar/toolbar_chrome_scope.dart';
-import '../adaptive_blur_view.dart';
-import '../detent_sheet.dart';
+import '../toolbar/hosted_top_toolbar.dart' show kHostedToolbarHeight;
+import '../toolbar/toolbar_chrome_scope.dart';
+import 'adaptive_blur_view.dart';
+import 'detent_sheet.dart';
 
 /// The gap between the top safe area and a sheet at its full height.
 const double _kTopGap = 10;
@@ -32,11 +32,11 @@ const double _kToolbarFadeDistance = 40;
 /// meets the screen edges. Without it, the sheet is the opaque, edge-to-edge
 /// sheet of iOS 18 and below.
 ///
-/// [AdaptiveBottomSheet.show] picks this route on iOS; push it yourself for
-/// more control.
-class IOS26BottomSheetRoute<T> extends PopupRoute<T> {
+/// [AdaptiveBottomSheet.show] picks this route on iOS for every sheet but one
+/// that only opens at full height; push it yourself for more control.
+class IOSBottomSheetRoute<T> extends PopupRoute<T> {
   /// Creates an iOS bottom sheet route.
-  IOS26BottomSheetRoute({
+  IOSBottomSheetRoute({
     required this.builder,
     this.detents = const [AdaptiveSheetDetent.large],
     this.initialDetent,
