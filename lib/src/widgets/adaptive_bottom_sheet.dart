@@ -9,42 +9,9 @@ import 'ios_bottom_sheet_route.dart';
 
 export 'detent_sheet.dart' show AdaptiveSheetDetent;
 
-/// An adaptive modal bottom sheet that renders platform-specific styles
-///
-/// On iOS, a sheet that only opens at full height is the system page sheet,
-/// `showCupertinoSheet`: the page behind it recedes. Below full height:
-/// On iOS 26+: A floating Liquid Glass sheet on a native `UIVisualEffectView`
-/// background that meets the screen edges at its full height
-/// On iOS <26 (iOS 18 and below): the opaque edge-to-edge iOS sheet
-/// On Android: Material 3 `showModalBottomSheet`
-///
-/// On every platform the sheet rests at [AdaptiveSheetDetent]s and snaps
-/// between them; dragging it down past the smallest one dismisses it. The
-/// contents are your own widgets, so they share the app's theme, providers
-/// and navigator.
 class AdaptiveBottomSheet {
   AdaptiveBottomSheet._();
 
-  /// Shows an adaptive bottom sheet whose contents [builder] or
-  /// [scrollableBuilder] builds. Pass exactly one.
-  ///
-  /// [scrollableBuilder] gets a controller the sheet creates and disposes;
-  /// give it to the contents' scroll view.
-  ///
-  /// The sheet opens at [initialDetent] (the smallest of [detents] when null)
-  /// and rests at [detents]. The contents get the sheet's height below the
-  /// drag handle; give a long list its own scroll view.
-  ///
-  /// [isDismissible] lets a tap outside the sheet or a drag down dismiss it.
-  /// [showDragHandle] draws the grabber (iOS) or drag handle (Android).
-  /// [useRootNavigator] picks the navigator the sheet is pushed on; the
-  /// full-height iOS sheet always uses the root one.
-  /// [backgroundColor] replaces the glass on iOS 26+ and the default surface
-  /// elsewhere. [blurStyle] picks the glass material of the iOS 26+ sheet
-  /// below full height.
-  ///
-  /// Returns a Future that resolves to the value the sheet was popped with,
-  /// or null when it was dismissed.
   static Future<T?> show<T>({
     required BuildContext context,
     WidgetBuilder? builder,
@@ -75,14 +42,11 @@ class AdaptiveBottomSheet {
         builder ??
         (context) => _OwnScrollController(builder: scrollableBuilder!);
 
-    // iOS - the system page sheet, with the page behind it scaled back
     final fullHeightOnly = DetentSheet.sizesOf(detents).first >= 1.0;
     if (PlatformInfo.isIOS && fullHeightOnly) {
       return showCupertinoSheet<T>(
         context: context,
         enableDrag: isDismissible,
-        // Newer Flutter releases deprecate builder for scrollableBuilder,
-        // which the Flutter version CI builds with does not have yet.
         // ignore: deprecated_member_use
         builder: (context) => _ToolbarCover(
           child: _CupertinoSheetContents(
@@ -94,7 +58,6 @@ class AdaptiveBottomSheet {
       );
     }
 
-    // iOS 26+ - Floating Liquid Glass sheet
     if (PlatformInfo.isIOS26OrHigher()) {
       return Navigator.of(context, rootNavigator: useRootNavigator).push<T>(
         IOSBottomSheetRoute<T>(
@@ -110,8 +73,6 @@ class AdaptiveBottomSheet {
       );
     }
 
-    // iOS 18 and below: showCupertinoSheet has no detents; draw the classic
-    // sheet at them
     if (PlatformInfo.isIOS) {
       return Navigator.of(context, rootNavigator: useRootNavigator).push<T>(
         IOSBottomSheetRoute<T>(
@@ -127,15 +88,12 @@ class AdaptiveBottomSheet {
       );
     }
 
-    // Android - Material 3 bottom sheet
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       useRootNavigator: useRootNavigator,
       isDismissible: isDismissible,
-      // The detent sheet inside handles dragging, snapping and dismissing,
-      // and draws the handle so that dragging it moves the sheet.
       enableDrag: false,
       showDragHandle: false,
       backgroundColor: backgroundColor,
@@ -156,8 +114,6 @@ class AdaptiveBottomSheet {
   }
 }
 
-/// The surface of the full-height iOS page sheet: [showCupertinoSheet] only
-/// clips its page, so the background and text style come from here.
 class _CupertinoSheetContents extends StatelessWidget {
   const _CupertinoSheetContents({
     required this.showDragHandle,
@@ -195,8 +151,6 @@ class _CupertinoSheetContents extends StatelessWidget {
   }
 }
 
-/// The Material 3 drag handle, drawn inside the detent sheet so that dragging
-/// it moves the sheet.
 class _MaterialDragHandle extends StatelessWidget {
   const _MaterialDragHandle();
 
@@ -223,7 +177,6 @@ class _MaterialDragHandle extends StatelessWidget {
   }
 }
 
-/// Owns the controller a [ScrollableWidgetBuilder] gets.
 class _OwnScrollController extends StatefulWidget {
   const _OwnScrollController({required this.builder});
 
@@ -246,8 +199,6 @@ class _OwnScrollControllerState extends State<_OwnScrollController> {
   Widget build(BuildContext context) => widget.builder(context, _controller);
 }
 
-/// Fades the fixed toolbar out as the page sheet rises over it: the toolbar
-/// is drawn above every route, and the page sheet reaches past it.
 class _ToolbarCover extends StatefulWidget {
   const _ToolbarCover({required this.child});
 

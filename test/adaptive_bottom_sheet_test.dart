@@ -8,7 +8,6 @@ import 'package:adaptive_platform_ui/src/widgets/detent_sheet.dart'
 
 const _contentKey = ValueKey('sheet-content');
 
-/// An app whose button runs [open] and stores what the sheet returned.
 Widget _app(
   Future<Object?> Function(BuildContext context) open, {
   void Function(Object? result)? onResult,
@@ -62,8 +61,6 @@ void main() {
     });
   });
 
-  // Tests run on the host, so AdaptiveBottomSheet.show takes the Material
-  // path; the iOS sheet is tested through its route below.
   group('AdaptiveBottomSheet (Material)', () {
     testWidgets('shows the contents and returns the popped value', (
       tester,
@@ -199,7 +196,6 @@ void main() {
       await tester.dragFrom(Offset(400, top - 20), const Offset(0, -150));
       await tester.pumpAndSettle();
 
-      // At full height the handle is at the top of the screen.
       expect(tester.getTopLeft(find.byKey(_contentKey)).dy, lessThan(100));
     });
 
@@ -403,8 +399,6 @@ void main() {
     });
   });
 
-  // The fixed toolbar is drawn above every route, so a sheet must tell the
-  // host to fade it out as the sheet rises over it.
   group('toolbar cover', () {
     Widget hostApp(
       List<double> reports,
