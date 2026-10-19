@@ -382,6 +382,12 @@ if (result != null) {
 
 ### AdaptiveBottomSheet
 
+<p align="center">
+  <img src="img/bottom-sheet-ios26.jpg" alt="iOS 26 Liquid Glass bottom sheet at medium height" width="250"/>
+  <img src="img/bottom-sheet-ios26-large.jpg" alt="iOS 26 Liquid Glass bottom sheet at full height" width="250"/>
+  <img src="img/bottom-sheet-ios18.jpg" alt="iOS 18 opaque bottom sheet at medium height" width="250"/>
+</p>
+
 ```dart
 // A sheet that opens at half height and can be dragged to full height
 final choice = await AdaptiveBottomSheet.show<String>(
