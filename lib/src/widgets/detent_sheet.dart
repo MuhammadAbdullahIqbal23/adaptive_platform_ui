@@ -2,15 +2,24 @@ import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 
+/// A height an `AdaptiveBottomSheet` can rest at
+///
+/// Like UIKit's `UISheetPresentationController.Detent`: [medium] is half the
+/// available height, [large] is all of it, and [AdaptiveSheetDetent.fraction]
+/// is any share of it.
 @immutable
 class AdaptiveSheetDetent {
+  /// A detent at [fraction] of the available height, in (0, 1]
   const AdaptiveSheetDetent.fraction(this.fraction)
     : assert(fraction > 0 && fraction <= 1);
 
+  /// Half the available height
   static const AdaptiveSheetDetent medium = AdaptiveSheetDetent.fraction(0.5);
 
+  /// The full available height
   static const AdaptiveSheetDetent large = AdaptiveSheetDetent.fraction(1.0);
 
+  /// Share of the available height, in (0, 1]
   final double fraction;
 
   @override
@@ -24,9 +33,15 @@ class AdaptiveSheetDetent {
   String toString() => 'AdaptiveSheetDetent(${fraction.toStringAsFixed(2)})';
 }
 
+/// Wraps the sheet's scroll view in its background, given the current extent
 typedef SheetChromeBuilder =
     Widget Function(BuildContext context, double extent, Widget child);
 
+/// A sheet that rests at [detents], snaps between them and, when
+/// [isDismissible], pops its route when dragged down past the smallest one
+///
+/// Shared by the Material sheet and `IOSBottomSheetRoute`; each draws its own
+/// background with [chromeBuilder].
 class DetentSheet extends StatefulWidget {
   const DetentSheet({
     super.key,
@@ -50,6 +65,7 @@ class DetentSheet extends StatefulWidget {
 
   final WidgetBuilder builder;
 
+  /// The detents' fractions, without duplicates, smallest first
   static List<double> sizesOf(List<AdaptiveSheetDetent> detents) =>
       detents.map((d) => d.fraction).toSet().toList()..sort();
 
@@ -80,6 +96,8 @@ class _DetentSheetState extends State<DetentSheet> {
 
   bool _handleExtent(DraggableScrollableNotification notification) {
     _extent.value = notification.extent;
+    // A dismissible sheet may be dragged down to 0; popping there, after the
+    // frame, closes it without a second animation from the route.
     if (widget.isDismissible && !_closing && notification.extent <= 0.001) {
       _closing = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -114,6 +132,9 @@ class _DetentSheetState extends State<DetentSheet> {
                 slivers: [
                   if (widget.dragHandle != null)
                     SliverToBoxAdapter(child: widget.dragHandle),
+                  // The contents fill what the handle leaves of the sheet.
+                  // Below the smallest detent they keep that detent's height
+                  // and slide off screen instead of being squashed.
                   SliverLayoutBuilder(
                     builder: (context, sliver) {
                       final remaining =
@@ -146,6 +167,7 @@ class _DetentSheetState extends State<DetentSheet> {
   }
 }
 
+/// The iOS sheet grabber: a short rounded bar at the top of the sheet
 class SheetGrabber extends StatelessWidget {
   const SheetGrabber({super.key});
 

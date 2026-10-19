@@ -25,8 +25,11 @@ class ToolbarChromeScope extends InheritedWidget {
   /// (see `DuoPose`). Pages then keep only their title at the top.
   final bool hostsDuoControls;
 
+  /// Called with how far a bottom sheet covers the hosted toolbar, from 0
+  /// to 1. The toolbar is drawn above every route, so it fades out instead.
   final ValueSetter<double>? onSheetCover;
 
+  /// The nearest scope's [onSheetCover], without depending on the scope.
   static ValueSetter<double>? sheetCoverReporterOf(BuildContext context) =>
       context.getInheritedWidgetOfExactType<ToolbarChromeScope>()?.onSheetCover;
 

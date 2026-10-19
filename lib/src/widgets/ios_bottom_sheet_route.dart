@@ -8,17 +8,30 @@ import '../toolbar/toolbar_chrome_scope.dart';
 import 'adaptive_blur_view.dart';
 import 'detent_sheet.dart';
 
+/// Space between the status bar and a full-height sheet
 const double _kTopGap = 10;
 
+/// Gap between a floating Liquid Glass sheet and the screen edges
 const double _kFloatingInset = 8;
 
+/// Corner radius of the Liquid Glass sheet
 const double _kGlassRadius = 36;
 
+/// Top corner radius of the pre-iOS 26 sheet
 const double _kLegacyRadius = 10;
 
+/// How far the sheet's top edge travels over the toolbar while it fades out
 const double _kToolbarFadeDistance = 40;
 
+/// A route that shows an iOS bottom sheet resting at [detents]
+///
+/// With [liquidGlass] (iOS 26+), the sheet floats off the screen edges on a
+/// native `UIVisualEffectView` background and meets the edges at full
+/// height. Without it (iOS 18 and below), the sheet is the opaque
+/// edge-to-edge iOS sheet. `AdaptiveBottomSheet.show` picks this route on
+/// iOS; push it directly for custom navigation.
 class IOSBottomSheetRoute<T> extends PopupRoute<T> {
+  /// Creates an iOS bottom sheet route
   IOSBottomSheetRoute({
     required this.builder,
     this.detents = const [AdaptiveSheetDetent.large],
@@ -33,24 +46,33 @@ class IOSBottomSheetRoute<T> extends PopupRoute<T> {
   }) : assert(detents.isNotEmpty),
        _barrierLabel = barrierLabel;
 
+  /// Builds the sheet's contents
   final WidgetBuilder builder;
 
+  /// The heights the sheet rests at
   final List<AdaptiveSheetDetent> detents;
 
+  /// The detent the sheet opens at; the smallest one when null
   final AdaptiveSheetDetent? initialDetent;
 
+  /// Whether the barrier and dragging down close the sheet
   final bool isDismissible;
 
+  /// Whether to draw the grabber at the top of the sheet
   final bool showDragHandle;
 
+  /// Opaque background instead of the platform one
   final Color? backgroundColor;
 
+  /// The Liquid Glass material, when [liquidGlass] and no [backgroundColor]
   final BlurStyle blurStyle;
 
+  /// Whether to draw the floating iOS 26 Liquid Glass sheet
   final bool liquidGlass;
 
   final String? _barrierLabel;
 
+  // Layout of the last frame, for working out where the sheet's top is.
   double _extent = 0;
   double _available = 0;
   double _topPadding = 0;
@@ -85,6 +107,11 @@ class IOSBottomSheetRoute<T> extends PopupRoute<T> {
     super.dispose();
   }
 
+  /// Tells the toolbar host how far the sheet covers the hosted toolbar
+  ///
+  /// The toolbar is drawn above every route, so it fades out over
+  /// [_kToolbarFadeDistance] as the sheet's top edge, sliding in with the
+  /// route animation, rises past the toolbar's bottom edge.
   void _reportToolbarCover() {
     final report = _reportCover;
     if (report == null || _available <= 0) return;
@@ -123,17 +150,22 @@ class IOSBottomSheetRoute<T> extends PopupRoute<T> {
         data: mediaQuery
             .removeViewInsets(removeBottom: true)
             .removePadding(removeTop: true),
-        child: Semantics(
-          scopesRoute: true,
-          namesRoute: true,
-          explicitChildNodes: true,
-          child: DetentSheet(
-            detents: detents,
-            initialDetent: initialDetent,
-            isDismissible: isDismissible,
-            dragHandle: showDragHandle ? const SheetGrabber() : null,
-            chromeBuilder: _buildChrome,
-            builder: builder,
+        // UIKit draws sheets at the elevated level, so dynamic colors such as
+        // systemBackground stand out from the page in dark mode.
+        child: CupertinoUserInterfaceLevel(
+          data: CupertinoUserInterfaceLevelData.elevated,
+          child: Semantics(
+            scopesRoute: true,
+            namesRoute: true,
+            explicitChildNodes: true,
+            child: DetentSheet(
+              detents: detents,
+              initialDetent: initialDetent,
+              isDismissible: isDismissible,
+              dragHandle: showDragHandle ? const SheetGrabber() : null,
+              chromeBuilder: _buildChrome,
+              builder: builder,
+            ),
           ),
         ),
       ),
@@ -164,6 +196,8 @@ class IOSBottomSheetRoute<T> extends PopupRoute<T> {
   Widget _buildChrome(BuildContext context, double extent, Widget child) {
     _extent = extent;
     _reportToolbarCover();
+    // 0 while floating, 1 at full height: over the last tenth of the drag the
+    // Liquid Glass sheet grows into the screen edges and squares its bottom.
     final full = liquidGlass
         ? ((extent - 0.9) / 0.1).clamp(0.0, 1.0) * _fullHeightFactor
         : 1.0;

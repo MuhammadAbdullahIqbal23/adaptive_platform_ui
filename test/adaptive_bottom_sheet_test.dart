@@ -1,3 +1,5 @@
+import 'package:flutter/cupertino.dart'
+    show CupertinoColors, CupertinoSheetRoute;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:adaptive_platform_ui/adaptive_platform_ui.dart';
@@ -11,8 +13,10 @@ const _contentKey = ValueKey('sheet-content');
 Widget _app(
   Future<Object?> Function(BuildContext context) open, {
   void Function(Object? result)? onResult,
+  Brightness brightness = Brightness.light,
 }) {
   return MaterialApp(
+    theme: ThemeData(brightness: brightness),
     home: Scaffold(
       body: Builder(
         builder: (context) => Center(
@@ -43,6 +47,23 @@ Future<void> _open(WidgetTester tester) async {
   await tester.tap(find.text('Open'));
   await tester.pumpAndSettle();
 }
+
+void _pretendIOS(int version) {
+  PlatformInfo.debugIsIOSOverride = true;
+  PlatformInfo.debugIOSVersionOverride = version;
+  addTearDown(() {
+    PlatformInfo.debugIsIOSOverride = null;
+    PlatformInfo.debugIOSVersionOverride = null;
+  });
+}
+
+final _grabberBar = find.descendant(
+  of: find.byType(SheetGrabber),
+  matching: find.byType(Container),
+);
+
+ModalRoute<Object?>? _sheetRoute(WidgetTester tester) =>
+    ModalRoute.of(tester.element(find.byKey(_contentKey)));
 
 void main() {
   group('AdaptiveSheetDetent', () {
@@ -263,6 +284,138 @@ void main() {
     });
   });
 
+  group('AdaptiveBottomSheet (iOS)', () {
+    testWidgets('a full-height sheet is the system page sheet', (tester) async {
+      _pretendIOS(26);
+      Object? result;
+      await tester.pumpWidget(
+        _app(
+          (context) => AdaptiveBottomSheet.show<String>(
+            context: context,
+            builder: _content,
+          ),
+          onResult: (value) => result = value,
+        ),
+      );
+      await _open(tester);
+
+      expect(_sheetRoute(tester), isA<CupertinoSheetRoute<String>>());
+      expect(find.byType(SheetGrabber), findsOneWidget);
+
+      await tester.tap(find.text('Pick'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(_contentKey), findsNothing);
+      expect(result, 'picked');
+    });
+
+    testWidgets('the page sheet takes backgroundColor and hides the grabber', (
+      tester,
+    ) async {
+      _pretendIOS(18);
+      const color = Color(0xFF123456);
+      await tester.pumpWidget(
+        _app(
+          (context) => AdaptiveBottomSheet.show<void>(
+            context: context,
+            showDragHandle: false,
+            backgroundColor: color,
+            builder: _content,
+          ),
+        ),
+      );
+      await _open(tester);
+
+      expect(_sheetRoute(tester), isA<CupertinoSheetRoute<void>>());
+      expect(find.byType(SheetGrabber), findsNothing);
+      expect(
+        find.ancestor(
+          of: find.byKey(_contentKey),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is ColoredBox && widget.color == color,
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('iOS 26 shows other detents as a Liquid Glass sheet', (
+      tester,
+    ) async {
+      _pretendIOS(26);
+      await tester.pumpWidget(
+        _app(
+          (context) => AdaptiveBottomSheet.show<void>(
+            context: context,
+            detents: const [AdaptiveSheetDetent.medium],
+            backgroundColor: const Color(0xFFFFFFFF),
+            builder: _content,
+          ),
+        ),
+      );
+      await _open(tester);
+
+      final route = _sheetRoute(tester);
+      expect(route, isA<IOSBottomSheetRoute<void>>());
+      expect((route! as IOSBottomSheetRoute<void>).liquidGlass, isTrue);
+      expect(route.barrierLabel, 'Dismiss');
+    });
+
+    for (final detent in [
+      AdaptiveSheetDetent.large,
+      AdaptiveSheetDetent.medium,
+    ]) {
+      testWidgets('the iOS 18 $detent is elevated in dark mode', (
+        tester,
+      ) async {
+        _pretendIOS(18);
+        await tester.pumpWidget(
+          _app(
+            (context) => AdaptiveBottomSheet.show<void>(
+              context: context,
+              detents: [detent],
+              builder: _content,
+            ),
+            brightness: Brightness.dark,
+          ),
+        );
+        await _open(tester);
+
+        final elevated = CupertinoColors.systemBackground.darkElevatedColor;
+        expect(
+          find.ancestor(
+            of: find.byKey(_contentKey),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is ColoredBox &&
+                  widget.color.toARGB32() == elevated.toARGB32(),
+            ),
+          ),
+          findsOneWidget,
+        );
+      });
+    }
+
+    testWidgets('iOS 18 shows other detents as the opaque sheet', (
+      tester,
+    ) async {
+      _pretendIOS(18);
+      await tester.pumpWidget(
+        _app(
+          (context) => AdaptiveBottomSheet.show<void>(
+            context: context,
+            detents: const [AdaptiveSheetDetent.medium],
+            builder: _content,
+          ),
+        ),
+      );
+      await _open(tester);
+
+      final route = _sheetRoute(tester);
+      expect(route, isA<IOSBottomSheetRoute<void>>());
+      expect((route! as IOSBottomSheetRoute<void>).liquidGlass, isFalse);
+    });
+  });
+
   group('IOSBottomSheetRoute', () {
     Future<Object?> push(
       BuildContext context, {
@@ -347,7 +500,7 @@ void main() {
       await tester.pumpWidget(_app(push));
       await _open(tester);
 
-      await tester.drag(find.byType(SheetGrabber), const Offset(0, 300));
+      await tester.drag(_grabberBar, const Offset(0, 300));
       await tester.pumpAndSettle();
 
       expect(find.byKey(_contentKey), findsNothing);
@@ -361,7 +514,7 @@ void main() {
       );
       await _open(tester);
 
-      await tester.drag(find.byType(SheetGrabber), const Offset(0, 300));
+      await tester.drag(_grabberBar, const Offset(0, 300));
       await tester.pumpAndSettle();
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
@@ -457,6 +610,25 @@ void main() {
       final reports = <double>[];
       await tester.pumpWidget(
         hostApp(reports, (c) => push(c, AdaptiveSheetDetent.large)),
+      );
+      await _open(tester);
+      expect(reports.last, 1);
+
+      await tester.tap(find.text('Pick'));
+      await tester.pumpAndSettle();
+      expect(reports.last, 0);
+    });
+
+    testWidgets('the iOS page sheet covers the toolbar until it closes', (
+      tester,
+    ) async {
+      _pretendIOS(26);
+      final reports = <double>[];
+      await tester.pumpWidget(
+        hostApp(
+          reports,
+          (c) => AdaptiveBottomSheet.show<void>(context: c, builder: _content),
+        ),
       );
       await _open(tester);
       expect(reports.last, 1);

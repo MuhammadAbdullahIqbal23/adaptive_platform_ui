@@ -46,6 +46,7 @@ class ToolbarBlend extends ChangeNotifier {
   /// 0 while the owner is in front, 1 while a dialog or sheet covers it.
   final AnimationController _cover;
 
+  /// 0 with no sheet, 1 while a bottom sheet covers the toolbar.
   final AnimationController _sheetCover;
 
   Object? _ownerId;
@@ -71,12 +72,15 @@ class ToolbarBlend extends ChangeNotifier {
   /// must not react.
   bool get ownerIsCovered => owner?.isCovered ?? false;
 
-  /// Opacity of the whole chrome: full in front, dimmed while covered.
+  /// Opacity of the whole chrome: full in front, dimmed while covered,
+  /// hidden under a bottom sheet.
   late final Animation<double> chromeOpacity = AnimationMin<double>(
     _cover.drive(Tween<double>(begin: 1, end: kToolbarCoveredOpacity)),
     _sheetCover.drive(Tween<double>(begin: 1, end: 0)),
   );
 
+  /// Fades the chrome out as a bottom sheet covers it, from 0 (no sheet) to
+  /// 1 (hidden). Sheets report this through `ToolbarChromeScope.onSheetCover`.
   void setSheetCover(double value) {
     if (_disposed) return;
     _sheetCover.value = value.clamp(0.0, 1.0);
